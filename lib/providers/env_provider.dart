@@ -14,6 +14,7 @@ class EnvProvider extends ChangeNotifier {
   List<EnvSample> _samples = [];
   List<EnvSample> _localDb = [];
   Timer? _poller;
+  bool _useDemoMode = false; // Demo mode when native plugin unavailable
 
   static const int keepSeconds = 600; // 최근 10분
   static const int keepHours = 24; // 24시간 로그
@@ -22,6 +23,7 @@ class EnvProvider extends ChangeNotifier {
   String get message => _message;
   List<EnvSample> get samples => _samples;
   List<EnvSample> get localDb => _localDb;
+  bool get useDemoMode => _useDemoMode;
 
   EnvProvider() {
     _loadLocalDb();
@@ -57,6 +59,7 @@ class EnvProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove("env_history");
       _localDb.clear();
+      _samples.clear();
       notifyListeners();
     } catch (e) {
       debugPrint('Error clearing DB: $e');
@@ -68,8 +71,16 @@ class EnvProvider extends ChangeNotifier {
     try {
       await _channel.invokeMethod("startLightService");
       _serviceRunning = true;
+      _useDemoMode = false;
       _message = "실시간 측정 중…";
       _startPolling();
+      notifyListeners();
+    } on MissingPluginException {
+      // Native plugin not available, use demo mode
+      _serviceRunning = true;
+      _useDemoMode = true;
+      _message = "데모 모드로 실행 중 (시뮬레이션)";
+      _startDemoPolling();
       notifyListeners();
     } catch (e) {
       _message = "서비스 시작 실패: $e";
@@ -79,15 +90,48 @@ class EnvProvider extends ChangeNotifier {
 
   Future<void> stopService() async {
     try {
-      await _channel.invokeMethod("stopLightService");
-      _poller?.cancel();
-      _serviceRunning = false;
-      _message = "서비스 중지됨.";
-      _samples.clear();
-      notifyListeners();
+      if (!_useDemoMode) {
+        await _channel.invokeMethod("stopLightService");
+      }
     } catch (e) {
-      debugPrint('Error stopping service: $e');
+      debugPrint('Error stopping native service: $e');
     }
+    _poller?.cancel();
+    _serviceRunning = false;
+    _useDemoMode = false;
+    _message = "서비스 중지됨.";
+    _samples.clear();
+    notifyListeners();
+  }
+
+  // ========== 데모 모드 폴링 (시뮬레이션) ==========
+  void _startDemoPolling() {
+    _poller?.cancel();
+    final random = Random();
+
+    _poller = Timer.periodic(const Duration(seconds: 5), (_) async {
+      // Generate realistic demo data
+      final lux = 20.0 + random.nextDouble() * 100; // 20-120 lux
+      final noiseDb = 25.0 + random.nextDouble() * 40; // 25-65 dB
+
+      final sample = EnvSample(DateTime.now(), lux, noiseDb);
+
+      _samples.add(sample);
+      _localDb.add(sample);
+
+      // 최근 10분만 유지
+      final cutoff =
+          DateTime.now().subtract(const Duration(seconds: keepSeconds));
+      _samples = _samples.where((s) => s.time.isAfter(cutoff)).toList();
+
+      // 24시간만 유지
+      final dayCutoff =
+          DateTime.now().subtract(const Duration(hours: keepHours));
+      _localDb = _localDb.where((s) => s.time.isAfter(dayCutoff)).toList();
+
+      await _saveLocalDb();
+      notifyListeners();
+    });
   }
 
   // ========== 폴링 (5초마다 센서 측정) ==========
