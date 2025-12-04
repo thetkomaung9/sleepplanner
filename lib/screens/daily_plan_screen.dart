@@ -59,26 +59,13 @@ class DailyPlanScreen extends StatelessWidget {
           children: [
             const Text(
               "🛌 메인 수면 시간",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Roboto',
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            Text(
-              "Start: ${_fmt(plan.mainSleepStart)}",
-              style: const TextStyle(fontFamily: 'Roboto'),
-            ),
-            Text(
-              "End:   ${_fmt(plan.mainSleepEnd)}",
-              style: const TextStyle(fontFamily: 'Roboto'),
-            ),
+            Text("Start: ${_fmt(plan.mainSleepStart)}"),
+            Text("End:   ${_fmt(plan.mainSleepEnd)}"),
             const SizedBox(height: 8),
-            Text(
-              "Duration: ${h}h ${m}m",
-              style: const TextStyle(fontFamily: 'Roboto'),
-            ),
+            Text("Duration: ${h}h ${m}m"),
           ],
         ),
       ),
@@ -95,17 +82,10 @@ class DailyPlanScreen extends StatelessWidget {
           children: [
             const Text(
               "☕ 카페인 컷오프",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Roboto',
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            Text(
-              "카페인 제한 시작 시간: ${_fmt(plan.caffeineCutoff)}",
-              style: const TextStyle(fontFamily: 'Roboto'),
-            ),
+            Text("카페인 제한 시작 시간: ${_fmt(plan.caffeineCutoff)}"),
           ],
         ),
       ),
@@ -122,17 +102,10 @@ class DailyPlanScreen extends StatelessWidget {
           children: [
             const Text(
               "🌙 취침 준비 시작 시간",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Roboto',
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            Text(
-              "Wind-down 시작: ${_fmt(plan.winddownStart)}",
-              style: const TextStyle(fontFamily: 'Roboto'),
-            ),
+            Text("Wind-down 시작: ${_fmt(plan.winddownStart)}"),
           ],
         ),
       ),
@@ -149,21 +122,79 @@ class DailyPlanScreen extends StatelessWidget {
           children: [
             const Text(
               "💡 빛 노출 전략",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Roboto',
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            ...plan.lightPlan.entries.map(
-              (e) => Text(
-                "- ${e.key}: ${e.value}",
-                style: const TextStyle(fontFamily: 'Roboto'),
-              ),
-            ),
+            ...plan.lightPlan.entries
+                .map((e) => _buildLightPlanEntry(e.key, e.value)),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildLightPlanEntry(String key, dynamic value) {
+    String label;
+    Widget valWidget;
+
+    switch (key) {
+      case 'strategy':
+        label = '전략';
+        final v = value?.toString() ?? '';
+        String friendly;
+        if (v == 'night_shift')
+          friendly = '야간 근무';
+        else if (v == 'day_shift')
+          friendly = '주간 근무';
+        else if (v == 'off_day')
+          friendly = '비근무일';
+        else
+          friendly = v;
+
+        valWidget = Row(
+          children: [
+            const Icon(Icons.swap_horiz, size: 18),
+            const SizedBox(width: 8),
+            Text(friendly),
+          ],
+        );
+        break;
+
+      case 'light_sensitivity':
+        label = '빛 민감도';
+        final num? d = (value is num) ? value : null;
+        valWidget = Row(children: [
+          const Icon(Icons.tune, size: 18),
+          const SizedBox(width: 8),
+          Text(d != null ? d.toStringAsFixed(2) : value.toString()),
+        ]);
+        break;
+
+      default:
+        // boolean flags like morning_bright_light, evening_dim_light, work_bright_light
+        label = key.replaceAll('_', ' ');
+        if (value is bool) {
+          valWidget = Row(children: [
+            Icon(value ? Icons.check_circle : Icons.cancel,
+                size: 18, color: value ? Colors.green : Colors.red),
+            const SizedBox(width: 8),
+            Text(value ? '권장됨' : '권장 안 함'),
+          ]);
+        } else {
+          valWidget = Text(value?.toString() ?? '');
+        }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+              flex: 3,
+              child: Text('- $label',
+                  style: const TextStyle(fontWeight: FontWeight.w600))),
+          Expanded(flex: 7, child: valWidget),
+        ],
       ),
     );
   }
@@ -178,22 +209,13 @@ class DailyPlanScreen extends StatelessWidget {
           children: [
             const Text(
               "📝 Notes",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Roboto',
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            ...plan.notes.map(
-              (n) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text(
-                  "- $n",
-                  style: const TextStyle(fontFamily: 'Roboto'),
-                ),
-              ),
-            ),
+            ...plan.notes.map((n) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(n),
+                )),
           ],
         ),
       ),
